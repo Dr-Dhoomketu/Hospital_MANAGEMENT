@@ -29,7 +29,7 @@ export default function DashboardLoginPage() {
       localStorage.setItem('ashoka_staff_user', JSON.stringify({ name: found.name, role: found.role, email: found.email }));
       navigate('/dashboard');
     } else {
-      setError('Invalid credentials. Try admin@ashoka.com / admin123');
+      setError('Invalid email or password. Please check your credentials.');
     }
     setLoading(false);
   };
@@ -88,11 +88,6 @@ export default function DashboardLoginPage() {
             ))}
           </div>
 
-          <div style={{ marginTop: '32px', padding: '14px 18px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
-            <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginBottom: '6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Demo Credentials</p>
-            <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.6)' }}>Email: <strong style={{ color: '#4A7FD4' }}>admin@ashoka.com</strong></p>
-            <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.6)', marginTop: '4px' }}>Password: <strong style={{ color: '#4A7FD4' }}>admin123</strong></p>
-          </div>
         </div>
       </div>
 
