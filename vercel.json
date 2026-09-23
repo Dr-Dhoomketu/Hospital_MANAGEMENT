@@ -5,6 +5,13 @@
   "installCommand": "pnpm install --frozen-lockfile",
   "framework": null,
   "rewrites": [
-    { "source": "/((?!assets|favicon).*)", "destination": "/index.html" }
+    {
+      "source": "/__clerk/:path*",
+      "destination": "https://clerk.ashokacaremedic.vercel.app/__clerk/:path*"
+    },
+    {
+      "source": "/((?!assets|favicon|robots).*)",
+      "destination": "/index.html"
+    }
   ]
 }
