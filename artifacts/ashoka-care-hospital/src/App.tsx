@@ -7,6 +7,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { EmergencyModal, FloatingSOS } from '@/components/EmergencyModal';
 
 import { useAuth, getUserDisplayName, getUserEmail, getUserPhone } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 
 // Public pages (all self-contained from original App, kept inline below)
 import LoginPage from '@/pages/public/LoginPage';
@@ -374,27 +375,34 @@ function BookPage() {
   // OTP verification state for guests
   const [otpStep, setOtpStep] = useState<'none' | 'sending' | 'verify' | 'verified'>('none');
   const [otp, setOtp] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
   const [otpError, setOtpError] = useState('');
-  const [mockOtp] = useState(() => String(Math.floor(100000 + Math.random() * 900000)));
 
   const sendOtp = async () => {
     if (!form.email) return;
     setOtpStep('sending');
-    // In production this calls the backend; for now simulate sending
-    await new Promise(r => setTimeout(r, 800));
-    setOtpSent(true);
-    setOtpStep('verify');
-    // Dev: show OTP in console
-    console.log(`[DEV] OTP for ${form.email}: ${mockOtp}`);
+    const { error } = await supabase.auth.signInWithOtp({
+      email: form.email,
+      options: { shouldCreateUser: true },
+    });
+    if (error) {
+      setOtpError(error.message);
+      setOtpStep('none');
+    } else {
+      setOtpStep('verify');
+    }
   };
 
-  const verifyOtp = () => {
-    if (otp === mockOtp) {
+  const verifyOtp = async () => {
+    const { error } = await supabase.auth.verifyOtp({
+      email: form.email,
+      token: otp,
+      type: 'email',
+    });
+    if (error) {
+      setOtpError('Incorrect code. Please try again.');
+    } else {
       setOtpStep('verified');
       setOtpError('');
-    } else {
-      setOtpError('Incorrect code. Please try again.');
     }
   };
 
@@ -462,7 +470,7 @@ function BookPage() {
                 <div className="flex gap-2">
                   <input
                     required type="email" value={form.email}
-                    onChange={e => { upd('email', e.target.value); if (otpStep !== 'none') { setOtpStep('none'); setOtpSent(false); } }}
+                    onChange={e => { upd('email', e.target.value); if (otpStep !== 'none') { setOtpStep('none'); } }}
                     placeholder="you@example.com"
                     readOnly={!!isSignedIn || otpStep === 'verified'}
                     className={INPUT + (isSignedIn || otpStep === 'verified' ? ' opacity-70 cursor-not-allowed' : '')}
@@ -485,9 +493,7 @@ function BookPage() {
                       <button type="button" onClick={verifyOtp} style={{ padding: '9px 18px', borderRadius: '8px', border: 'none', background: '#0A1F44', color: '#fff', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}>Confirm</button>
                     </div>
                     {otpError && <p style={{ fontSize: '0.72rem', color: '#dc2626', marginTop: '6px' }}>{otpError}</p>}
-                    <p style={{ fontSize: '0.65rem', color: '#A0AEC0', marginTop: '6px' }}>
-                      [Dev mode] Code: <strong style={{ color: '#2F5DAA' }}>{mockOtp}</strong>
-                    </p>
+                    <p style={{ fontSize: '0.68rem', color: '#6B7FA3', marginTop: '6px' }}>A 6-digit code was sent to your email.</p>
                   </div>
                 )}
                 {otpStep === 'sending' && <p style={{ fontSize: '0.72rem', color: '#6B7FA3', marginTop: '6px' }}>Sending code…</p>}
