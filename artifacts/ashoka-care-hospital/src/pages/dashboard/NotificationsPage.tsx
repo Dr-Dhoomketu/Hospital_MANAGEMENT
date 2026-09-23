@@ -13,7 +13,7 @@ function timeAgo(iso: string) {
 export default function NotificationsPage() {
   const query = useListNotifications();
   const [read, setRead] = useState<Set<string>>(new Set());
-  const notifs = query.data ?? [];
+  const notifs = Array.isArray(query.data) ? query.data : [];
   const unread = notifs.filter(n => !n.read && !read.has(n.id)).length;
 
   const markAllRead = () => setRead(new Set(notifs.map(n => n.id)));

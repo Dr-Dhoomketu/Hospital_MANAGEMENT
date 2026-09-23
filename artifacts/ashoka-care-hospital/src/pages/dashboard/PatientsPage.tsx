@@ -13,7 +13,7 @@ function PatientRecord() {
   const patientQ = useGetPatient(params.id ?? '', { query: { queryKey: getGetPatientQueryKey(params.id ?? ''), enabled: !!params.id } });
   const timelineQ = useGetPatientTimeline(params.id ?? '', { query: { queryKey: getGetPatientTimelineQueryKey(params.id ?? ''), enabled: !!params.id } });
   const patient = patientQ.data;
-  const timeline = timelineQ.data ?? [];
+  const timeline = Array.isArray(timelineQ.data) ? timelineQ.data : [];
 
   if (patientQ.isLoading) return <div className="p-8 text-center text-muted-foreground text-sm">Loading…</div>;
   if (!patient) return <EmptyState icon={Users} title="Patient not found" detail="This record may have been removed." />;
@@ -99,7 +99,7 @@ export default function PatientsPage() {
     query: { queryKey: getListPatientsQueryKey({ search: query || undefined, status: status || undefined }) },
   });
   const createMut = useCreatePatient();
-  const patients = patientsQ.data ?? [];
+  const patients = Array.isArray(patientsQ.data) ? patientsQ.data : [];
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();

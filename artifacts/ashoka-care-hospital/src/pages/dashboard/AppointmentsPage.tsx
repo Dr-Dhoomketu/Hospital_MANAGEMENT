@@ -23,7 +23,7 @@ export default function AppointmentsPage() {
     { query: { queryKey: getListAppointmentsQueryKey({ date: dateFilter || undefined, status: statusFilter || undefined }) } }
   );
   const updateStatus = useUpdateAppointmentStatus();
-  const apts = query.data ?? [];
+  const apts = Array.isArray(query.data) ? query.data : [];
 
   const markCheckin = (id: string) => {
     updateStatus.mutate({ id, data: { status: 'checked_in' } }, {
