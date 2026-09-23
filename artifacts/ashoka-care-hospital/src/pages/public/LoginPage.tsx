@@ -1,6 +1,17 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { useSignIn } from '@clerk/clerk-react';
+
+// Safe Clerk hook — returns graceful no-ops if ClerkProvider isn't active
+function useSignInSafe() {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { useSignIn } = require('@clerk/clerk-react');
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useSignIn();
+  } catch {
+    return { signIn: null, isLoaded: false };
+  }
+}
 
 function FloatingCard({ icon, label, rotate, top, right, bottom, delay, g1, g2, iconG }: {
   icon: string; label: string; rotate: number;
@@ -36,13 +47,17 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [, navigate] = useLocation();
-  const { signIn, isLoaded } = useSignIn();
+  const { signIn, isLoaded } = useSignInSafe();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isLoaded) return;
     setError(''); setLoading(true);
     try {
+      if (!isLoaded || !signIn) {
+        setError('Authentication service is not configured. Please use the Staff login for the dashboard.');
+        setLoading(false);
+        return;
+      }
       const result = await signIn.create({ identifier: email, password });
       if (result.status === 'complete') navigate('/portal/dashboard');
       else setError('Verification required. Please check your email.');
@@ -53,7 +68,7 @@ export default function LoginPage() {
   };
 
   const handleGoogle = async () => {
-    if (!isLoaded) return;
+    if (!isLoaded || !signIn) { setError('Google sign-in is not configured.'); return; }
     try {
       await signIn.authenticateWithRedirect({
         strategy: 'oauth_google',

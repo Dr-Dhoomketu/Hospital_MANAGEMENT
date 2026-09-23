@@ -163,8 +163,10 @@ function PublicHome() {
   const servicesQuery = useListPublicServices({ query: { queryKey: getListPublicServicesQueryKey() } });
   const doctorsQuery = useListPublicDoctors(undefined, { query: { queryKey: getListPublicDoctorsQueryKey() } });
   useHealthCheck({ query: { queryKey: getHealthCheckQueryKey() } });
-  const services = servicesQuery.data?.length ? servicesQuery.data : publicServices.map((s, i) => ({ id: `f${i}`, name: s.name, description: s.description, category: 'Care', durationMinutes: 45, startingPrice: i === 0 ? 800 : 1200 }));
-  const doctors = doctorsQuery.data?.slice(0, 3) ?? [];
+  const services = Array.isArray(servicesQuery.data) && servicesQuery.data.length > 0
+    ? servicesQuery.data
+    : publicServices.map((s, i) => ({ id: `f${i}`, name: s.name, description: s.description, category: 'Care', durationMinutes: 45, startingPrice: i === 0 ? 800 : 1200 }));
+  const doctors = Array.isArray(doctorsQuery.data) ? doctorsQuery.data.slice(0, 3) : [];
 
   return (
     <div className="min-h-[100dvh] bg-[hsl(var(--background))]">
@@ -360,8 +362,8 @@ function BookPage() {
     setForm(p => ({ ...p, email: clerkEmail, patientName: clerkName || p.patientName, phone: clerkPhone || p.phone }));
   }
 
-  const services = servicesQuery.data ?? [];
-  const doctors = doctorsQuery.data ?? [];
+  const services = Array.isArray(servicesQuery.data) ? servicesQuery.data : [];
+  const doctors = Array.isArray(doctorsQuery.data) ? doctorsQuery.data : [];
   const upd = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }));
 
   // OTP verification state for guests

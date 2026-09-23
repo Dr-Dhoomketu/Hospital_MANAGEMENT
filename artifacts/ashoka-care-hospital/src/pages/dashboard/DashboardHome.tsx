@@ -9,7 +9,7 @@ export default function DashboardHome() {
   const summaryQ = useGetDashboardSummary({ query: { queryKey: getGetDashboardSummaryQueryKey() } });
   const appointmentsQ = useListAppointments({}, { query: { queryKey: getListAppointmentsQueryKey({}) } });
   const s = summaryQ.data;
-  const appointments = appointmentsQ.data?.slice(0, 4) ?? [];
+  const appointments = Array.isArray(appointmentsQ.data) ? appointmentsQ.data.slice(0, 4) : [];
 
   const today = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 

@@ -2,6 +2,16 @@ import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useSignUp } from '@clerk/clerk-react';
 
+// Safe wrapper in case Clerk isn't properly configured
+function useSignUpSafe() {
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useSignUp();
+  } catch {
+    return { signUp: null, isLoaded: false };
+  }
+}
+
 const inputStyle: React.CSSProperties = {
   width: '100%', padding: '12px 14px', borderRadius: '10px',
   border: '1.5px solid rgba(47,93,170,0.15)', outline: 'none',
@@ -22,11 +32,11 @@ export default function SignupPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [, navigate] = useLocation();
-  const { signUp, isLoaded } = useSignUp();
+  const { signUp, isLoaded } = useSignUpSafe();
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isLoaded) return;
+    if (!isLoaded || !signUp) { setError('Auth not configured.'); return; }
     if (password !== confirm) { setError('Passwords do not match'); return; }
     if (password.length < 8) { setError('Password must be at least 8 characters'); return; }
     setError(''); setLoading(true);
@@ -46,7 +56,7 @@ export default function SignupPage() {
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isLoaded) return;
+    if (!isLoaded || !signUp) return;
     setError(''); setLoading(true);
     try {
       const result = await signUp.attemptEmailAddressVerification({ code });
@@ -58,7 +68,7 @@ export default function SignupPage() {
   };
 
   const handleGoogle = async () => {
-    if (!isLoaded) return;
+    if (!isLoaded || !signUp) return;
     try {
       await signUp.authenticateWithRedirect({
         strategy: 'oauth_google',
