@@ -37,6 +37,7 @@ import {
   persistAppointmentIfConfigured,
   updateAppointmentStatus,
 } from "../lib/hospital-data";
+import { sendAppointmentConfirmation } from "../lib/mailer.js";
 
 const router: IRouter = Router();
 
@@ -65,6 +66,13 @@ router.post("/public/appointments", async (req, res, next) => {
       scheduledAt: input.scheduledAt.toISOString(),
     });
     await persistAppointmentIfConfigured(appointment);
+
+    // Send confirmation email (fire-and-forget — don't block response)
+    sendAppointmentConfirmation({
+      ...appointment,
+      email: input.email,
+    }).catch(() => {});
+
     res.status(201).json(CreatePublicAppointmentResponse.parse(appointment));
   } catch (error) {
     next(error);

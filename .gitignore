@@ -47,3 +47,13 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Environment secrets — never commit
+.env.local
+.env*.local
+*.env
+
+# Large reference folders (not part of the deployable project)
+VMS_MAIN/
+ASHOKA-Care-Hospital-Operations*/
+screenshots/
