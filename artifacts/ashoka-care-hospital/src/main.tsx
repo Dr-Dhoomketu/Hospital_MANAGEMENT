@@ -3,7 +3,8 @@ import App from './App';
 import { ErrorBoundary } from '@/components/error-boundary';
 import './index.css';
 
-const CLERK_KEY = (import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ?? '') as string;
+const CLERK_KEY = (import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+  ?? 'pk_test_dG91Y2hpbmctcmFwdG9yLTk2LmNsZXJrLmFjY291bnRzLmRldiQ') as string;
 
 // Only mount ClerkProvider if we have a key that looks valid
 // A valid Clerk publishable key starts with pk_test_ or pk_live_

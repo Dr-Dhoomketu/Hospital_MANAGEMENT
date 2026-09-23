@@ -54,7 +54,7 @@ export default function LoginPage() {
     setError(''); setLoading(true);
     try {
       if (!isLoaded || !signIn) {
-        setError('Authentication service is not configured. Please use the Staff login for the dashboard.');
+        setError('Sign in service is loading. Please try again in a moment.');
         setLoading(false);
         return;
       }
@@ -68,7 +68,7 @@ export default function LoginPage() {
   };
 
   const handleGoogle = async () => {
-    if (!isLoaded || !signIn) { setError('Google sign-in is not configured.'); return; }
+    if (!isLoaded || !signIn) return;
     try {
       await signIn.authenticateWithRedirect({
         strategy: 'oauth_google',
