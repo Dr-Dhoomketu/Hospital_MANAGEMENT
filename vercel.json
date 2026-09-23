@@ -7,10 +7,10 @@
   "rewrites": [
     {
       "source": "/__clerk/:path*",
-      "destination": "https://clerk.ashokacaremedic.vercel.app/__clerk/:path*"
+      "destination": "https://touching-raptor-96.clerk.accounts.dev/__clerk/:path*"
     },
     {
-      "source": "/((?!assets|favicon|robots).*)",
+      "source": "/((?!assets|favicon|robots|\\.well-known).*)",
       "destination": "/index.html"
     }
   ]
