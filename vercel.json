@@ -2,9 +2,9 @@
   "version": 2,
   "buildCommand": "pnpm install && pnpm --filter @workspace/ashoka-care-hospital run build",
   "outputDirectory": "artifacts/ashoka-care-hospital/dist/public",
-  "installCommand": "pnpm install",
+  "installCommand": "pnpm install --frozen-lockfile",
   "framework": null,
   "rewrites": [
-    { "source": "/((?!assets/).*)", "destination": "/index.html" }
+    { "source": "/((?!assets|favicon).*)", "destination": "/index.html" }
   ]
 }
