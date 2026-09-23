@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "ASHOKA Care Hospital"
+description = "A patient-first hospital website and operations system for discovering services, booking appointments, managing care records, and coordinating hospital teams."
+version = "1.0.0"
+id = "artifacts/ashoka-care-hospital"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21773
+
+[services.development]
+run = "pnpm --filter @workspace/ashoka-care-hospital run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/ashoka-care-hospital", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/ashoka-care-hospital/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21773"
+BASE_PATH = "/"
