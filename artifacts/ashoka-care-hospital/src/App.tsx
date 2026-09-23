@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Route, Router as WouterRouter, Switch, useLocation, Redirect } from 'wouter';
-import { AuthenticateWithRedirectCallback, useAuth, useUser as useClerkUser, UserButton, SignedIn, SignedOut } from '@clerk/clerk-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { EmergencyModal, FloatingSOS } from '@/components/EmergencyModal';
+
+import { AuthenticateWithRedirectCallback, useAuth, useUser as useClerkUser, UserButton, SignedIn, SignedOut } from '@clerk/clerk-react';
 
 // Public pages (all self-contained from original App, kept inline below)
 import LoginPage from '@/pages/public/LoginPage';
