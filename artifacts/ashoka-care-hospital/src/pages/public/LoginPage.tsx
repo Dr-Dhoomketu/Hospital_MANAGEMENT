@@ -1,17 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
-
-// Safe Clerk hook — returns graceful no-ops if ClerkProvider isn't active
-function useSignInSafe() {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { useSignIn } = require('@clerk/clerk-react');
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    return useSignIn();
-  } catch {
-    return { signIn: null, isLoaded: false };
-  }
-}
+import { supabase } from '@/lib/supabase';
 
 function FloatingCard({ icon, label, rotate, top, right, bottom, delay, g1, g2, iconG }: {
   icon: string; label: string; rotate: number;
@@ -30,7 +19,7 @@ function FloatingCard({ icon, label, rotate, top, right, bottom, delay, g1, g2, 
       transform: `rotate(${rotate}deg)`,
       animation: `cardFloat ${5 + delay}s ease-in-out ${delay}s infinite`,
     }}>
-      <div style={{ width: '60px', height: '60px', borderRadius: '18px', background: iconG, boxShadow: '0 8px 24px rgba(47,93,170,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: '60px', height: '60px', borderRadius: '18px', background: iconG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <svg style={{ width: '28px', height: '28px', color: '#fff' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.6" d={icon}/>
         </svg>
@@ -47,35 +36,28 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [, navigate] = useLocation();
-  const { signIn, isLoaded } = useSignInSafe();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(''); setLoading(true);
     try {
-      if (!isLoaded || !signIn) {
-        setError('Sign in service is loading. Please try again in a moment.');
-        setLoading(false);
-        return;
-      }
-      const result = await signIn.create({ identifier: email, password });
-      if (result.status === 'complete') navigate('/portal/dashboard');
-      else setError('Verification required. Please check your email.');
+      const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+      if (authError) { setError(authError.message); return; }
+      navigate('/portal/dashboard');
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Invalid email or password';
-      setError(msg);
+      setError(err instanceof Error ? err.message : 'Sign in failed');
     } finally { setLoading(false); }
   };
 
   const handleGoogle = async () => {
-    if (!isLoaded || !signIn) return;
-    try {
-      await signIn.authenticateWithRedirect({
-        strategy: 'oauth_google',
-        redirectUrl: `${window.location.origin}/sso-callback`,
-        redirectUrlComplete: `${window.location.origin}/portal/dashboard`,
-      });
-    } catch (err) { console.error(err); }
+    setError('');
+    const { error: authError } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/portal/dashboard`,
+      },
+    });
+    if (authError) setError(authError.message);
   };
 
   return (
@@ -87,103 +69,52 @@ export default function LoginPage() {
         alignItems: 'flex-start', justifyContent: 'center',
         padding: '72px 64px', flexShrink: 0, overflow: 'hidden',
       }}>
-        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none',
-          backgroundImage: 'linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)',
-          backgroundSize: '44px 44px' }}/>
-        <div style={{ position: 'absolute', top: '-20%', right: '-10%', width: '60%', height: '60%', borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(74,127,212,0.15) 0%, transparent 70%)', pointerEvents: 'none' }}/>
-        <div style={{ position: 'absolute', bottom: '-15%', left: '-5%', width: '50%', height: '50%', borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(47,93,170,0.1) 0%, transparent 70%)', pointerEvents: 'none' }}/>
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: 'linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)', backgroundSize: '44px 44px' }}/>
+        <div style={{ position: 'absolute', top: '-20%', right: '-10%', width: '60%', height: '60%', borderRadius: '50%', background: 'radial-gradient(circle, rgba(74,127,212,0.15) 0%, transparent 70%)', pointerEvents: 'none' }}/>
 
         <div style={{ position: 'absolute', right: '-20px', top: 0, bottom: 0, width: '280px' }}>
-          <FloatingCard
-            icon="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-            label="PATIENT" g1="#152c6b" g2="#2a4d9e"
-            iconG="linear-gradient(135deg,#dc2626,#ef4444)"
-            rotate={-8} top="8%" right="40px" delay={0}
-          />
-          <FloatingCard
-            icon="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-            label="SECURE" g1="#0d2550" g2="#1e3a7a"
-            iconG="linear-gradient(135deg,#2F5DAA,#4A7FD4)"
-            rotate={6} top="38%" right="-10px" delay={1.4}
-          />
-          <FloatingCard
-            icon="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
-            label="RECORDS" g1="#102040" g2="#1a3266"
-            iconG="linear-gradient(135deg,#1e4080,#2F5DAA)"
-            rotate={-4} bottom="10%" right="50px" delay={2.5}
-          />
+          <FloatingCard icon="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" label="PATIENT" g1="#152c6b" g2="#2a4d9e" iconG="linear-gradient(135deg,#dc2626,#ef4444)" rotate={-8} top="8%" right="40px" delay={0} />
+          <FloatingCard icon="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" label="SECURE" g1="#0d2550" g2="#1e3a7a" iconG="linear-gradient(135deg,#2F5DAA,#4A7FD4)" rotate={6} top="38%" right="-10px" delay={1.4} />
+          <FloatingCard icon="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" label="RECORDS" g1="#102040" g2="#1a3266" iconG="linear-gradient(135deg,#1e4080,#2F5DAA)" rotate={-4} bottom="10%" right="50px" delay={2.5} />
         </div>
 
         <div style={{ position: 'relative', zIndex: 10, maxWidth: '380px' }}>
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: '8px',
-            padding: '6px 14px', borderRadius: '999px',
-            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
-            marginBottom: '32px',
-          }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', borderRadius: '999px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '32px' }}>
             <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#dc2626', boxShadow: '0 0 8px rgba(220,38,38,0.8)' }}/>
             <span style={{ fontSize: '0.55rem', fontWeight: 800, letterSpacing: '0.3em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)' }}>Patient Portal</span>
           </div>
-
-          <h2 style={{
-            fontSize: '3.2rem', fontWeight: 900, color: '#fff',
-            lineHeight: 0.92, letterSpacing: '-0.04em', marginBottom: '24px',
-          }}>
+          <h2 style={{ fontSize: '3.2rem', fontWeight: 900, color: '#fff', lineHeight: 0.92, letterSpacing: '-0.04em', marginBottom: '24px' }}>
             ASHOKA<br/>
-            <span style={{ background: 'linear-gradient(135deg, #4A7FD4, #7ab0f0)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-              CARE
-            </span>
+            <span style={{ background: 'linear-gradient(135deg, #4A7FD4, #7ab0f0)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>CARE</span>
           </h2>
-
           <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.9rem', lineHeight: 1.75, marginBottom: '40px' }}>
             Access your health records, appointments, and care history — all in one secure place.
           </p>
-
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {[
               { icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z', label: 'Book & Manage Appointments' },
               { icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', label: 'View Medical Records' },
               { icon: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z', label: '24/7 Emergency Support' },
             ].map(({ icon, label }) => (
-              <div key={label} style={{
-                display: 'flex', alignItems: 'center', gap: '12px',
-                padding: '11px 18px', borderRadius: '10px',
-                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)',
-              }}>
-                <svg style={{ width: '14px', height: '14px', color: '#4A7FD4', flexShrink: 0 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={icon}/>
-                </svg>
+              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '11px 18px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                <svg style={{ width: '14px', height: '14px', color: '#4A7FD4', flexShrink: 0 }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={icon}/></svg>
                 <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.06em' }}>{label}</span>
               </div>
             ))}
           </div>
         </div>
-        <style>{`
-          @keyframes cardFloat { 0%,100%{transform:rotate(var(--r,0deg)) translateY(0px)} 50%{transform:rotate(var(--r,0deg)) translateY(-12px)} }
-        `}</style>
+        <style>{`@keyframes cardFloat { 0%,100%{transform:rotate(var(--r,0deg)) translateY(0px)} 50%{transform:rotate(var(--r,0deg)) translateY(-12px)} }`}</style>
       </div>
 
       {/* RIGHT PANEL */}
-      <div style={{
-        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: '40px 32px', position: 'relative', background: '#ffffff',
-      }}>
-        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none',
-          backgroundImage: 'linear-gradient(rgba(47,93,170,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(47,93,170,0.04) 1px, transparent 1px)',
-          backgroundSize: '44px 44px' }}/>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 32px', position: 'relative', background: '#ffffff' }}>
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: 'linear-gradient(rgba(47,93,170,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(47,93,170,0.04) 1px, transparent 1px)', backgroundSize: '44px 44px' }}/>
 
         <div style={{ width: '100%', maxWidth: '420px', position: 'relative', zIndex: 10 }}>
           <Link href="/">
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '44px', cursor: 'pointer' }}>
-              <div style={{
-                width: '40px', height: '40px', borderRadius: '12px',
-                background: '#0A1F44', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <svg style={{ width: '20px', height: '20px', color: '#fff' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                </svg>
+              <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#0A1F44', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg style={{ width: '20px', height: '20px', color: '#fff' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
               </div>
               <div>
                 <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0A1F44' }}>ASHOKA Care</div>
@@ -198,20 +129,10 @@ export default function LoginPage() {
             <p style={{ fontSize: '0.875rem', color: '#6B7FA3', lineHeight: 1.6 }}>Sign in to access your health dashboard</p>
           </div>
 
-          {error && (
-            <div style={{ marginBottom: '20px', padding: '13px 16px', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px', color: '#dc2626', fontSize: '0.8rem' }}>
-              {error}
-            </div>
-          )}
+          {error && <div style={{ marginBottom: '20px', padding: '13px 16px', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px', color: '#dc2626', fontSize: '0.8rem' }}>{error}</div>}
 
           {/* Google Sign In */}
-          <button onClick={handleGoogle} style={{
-            width: '100%', padding: '13px', borderRadius: '10px',
-            border: '1.5px solid rgba(10,31,68,0.15)', background: '#fff',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
-            cursor: 'pointer', marginBottom: '20px', fontSize: '0.875rem', fontWeight: 600, color: '#0A1F44',
-            transition: 'all 0.2s', boxSizing: 'border-box',
-          }}>
+          <button onClick={handleGoogle} style={{ width: '100%', padding: '13px', borderRadius: '10px', border: '1.5px solid rgba(10,31,68,0.15)', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', cursor: 'pointer', marginBottom: '20px', fontSize: '0.875rem', fontWeight: 600, color: '#0A1F44', transition: 'all 0.2s', boxSizing: 'border-box' }}>
             <svg style={{ width: '18px', height: '18px' }} viewBox="0 0 24 24">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
               <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -222,61 +143,38 @@ export default function LoginPage() {
           </button>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-            <div style={{ flex: 1, height: '1px', background: 'rgba(10,31,68,0.1)' }}/>
-            <span style={{ fontSize: '0.7rem', color: '#A0AEC0', fontWeight: 600 }}>OR</span>
-            <div style={{ flex: 1, height: '1px', background: 'rgba(10,31,68,0.1)' }}/>
+            <div style={{ flex: 1, height: '1px', background: 'rgba(10,31,68,0.1)' }}/><span style={{ fontSize: '0.7rem', color: '#A0AEC0', fontWeight: 600 }}>OR</span><div style={{ flex: 1, height: '1px', background: 'rgba(10,31,68,0.1)' }}/>
           </div>
 
-          {/* Form */}
           <div style={{ background: '#fff', borderRadius: '20px', border: '1px solid rgba(47,93,170,0.1)', boxShadow: '0 4px 32px rgba(10,31,68,0.07)', padding: '28px' }}>
             <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#6B7FA3', marginBottom: '7px' }}>Email Address</label>
-                <input required type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com"
-                  style={{ width: '100%', padding: '12px 14px', borderRadius: '10px', border: '1.5px solid rgba(47,93,170,0.15)', outline: 'none', fontSize: '0.875rem', color: '#0A1F44', boxSizing: 'border-box' }}/>
+                <input required type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" style={{ width: '100%', padding: '12px 14px', borderRadius: '10px', border: '1.5px solid rgba(47,93,170,0.15)', outline: 'none', fontSize: '0.875rem', color: '#0A1F44', boxSizing: 'border-box' }}/>
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#6B7FA3', marginBottom: '7px' }}>Password</label>
                 <div style={{ position: 'relative' }}>
-                  <input required type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••"
-                    style={{ width: '100%', padding: '12px 44px 12px 14px', borderRadius: '10px', border: '1.5px solid rgba(47,93,170,0.15)', outline: 'none', fontSize: '0.875rem', color: '#0A1F44', boxSizing: 'border-box' }}/>
+                  <input required type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" style={{ width: '100%', padding: '12px 44px 12px 14px', borderRadius: '10px', border: '1.5px solid rgba(47,93,170,0.15)', outline: 'none', fontSize: '0.875rem', color: '#0A1F44', boxSizing: 'border-box' }}/>
                   <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#A0AEC0', cursor: 'pointer', padding: 0 }}>
-                    <svg style={{ width: '16px', height: '16px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={showPassword ? "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" : "M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"}/>
-                    </svg>
+                    <svg style={{ width: '16px', height: '16px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={showPassword ? "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" : "M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"}/></svg>
                   </button>
                 </div>
               </div>
-              <button type="submit" disabled={loading} style={{
-                width: '100%', padding: '14px', borderRadius: '10px', border: 'none',
-                background: loading ? '#6B7FA3' : '#0A1F44', color: '#fff',
-                fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
-                cursor: loading ? 'not-allowed' : 'pointer', marginTop: '4px', transition: 'all 0.2s',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-              }}>
+              <button type="submit" disabled={loading} style={{ width: '100%', padding: '14px', borderRadius: '10px', border: 'none', background: loading ? '#6B7FA3' : '#0A1F44', color: '#fff', fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: loading ? 'not-allowed' : 'pointer', marginTop: '4px', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                 {loading ? (<><div style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }}/>Signing in…</>) : 'Sign In →'}
               </button>
             </form>
           </div>
 
           <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-            <Link href="/signup" style={{ fontSize: '0.8rem', color: '#2F5DAA', fontWeight: 600, textDecoration: 'none' }}>
-              New patient? Create account →
-            </Link>
-            <Link href="/dashboard/login" style={{ fontSize: '0.72rem', color: '#A0AEC0', fontWeight: 600, textDecoration: 'none' }}>
-              Staff login →
-            </Link>
-            <Link href="/" style={{ fontSize: '0.7rem', color: '#A0AEC0', textDecoration: 'none', fontWeight: 600 }}>
-              ← Back to Home
-            </Link>
+            <Link href="/signup" style={{ fontSize: '0.8rem', color: '#2F5DAA', fontWeight: 600, textDecoration: 'none' }}>New patient? Create account →</Link>
+            <Link href="/dashboard/login" style={{ fontSize: '0.72rem', color: '#A0AEC0', fontWeight: 600, textDecoration: 'none' }}>Staff login →</Link>
+            <Link href="/" style={{ fontSize: '0.7rem', color: '#A0AEC0', textDecoration: 'none', fontWeight: 600 }}>← Back to Home</Link>
           </div>
         </div>
       </div>
-
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @media (max-width: 767px) { .login-left { display: none !important; } }
-      `}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } } @media (max-width: 767px) { .login-left { display: none !important; } }`}</style>
     </main>
   );
 }

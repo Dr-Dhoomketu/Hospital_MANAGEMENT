@@ -6,7 +6,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { EmergencyModal, FloatingSOS } from '@/components/EmergencyModal';
 
-import { AuthenticateWithRedirectCallback, useAuth, useUser as useClerkUser, UserButton, SignedIn, SignedOut } from '@clerk/clerk-react';
+import { useAuth, getUserDisplayName, getUserEmail, getUserPhone } from '@/lib/auth';
 
 // Public pages (all self-contained from original App, kept inline below)
 import LoginPage from '@/pages/public/LoginPage';
@@ -81,6 +81,9 @@ function PublicLayout({ children }: { children: React.ReactNode }) {
 function PublicHeader() {
   const [open, setOpen] = useState(false);
   const [sosOpen, setSosOpen] = useState(false);
+  const { user, signOut } = useAuth();
+  const displayName = getUserDisplayName(user);
+
   return (
     <>
       <header className="sticky top-0 z-30 border-b border-[hsl(var(--border)/.7)] bg-[hsl(var(--background)/.88)] backdrop-blur-xl">
@@ -103,20 +106,23 @@ function PublicHeader() {
             <button onClick={() => setSosOpen(true)} className="hidden rounded-xl bg-red-600 px-3 py-2 text-sm font-bold text-white hover:bg-red-700 sm:inline-flex items-center gap-1">
               🚨 Emergency
             </button>
-            <SignedOut>
+            {user ? (
+              <>
+                <Link href="/portal/dashboard" className="hidden rounded-xl px-3 py-2 text-sm font-bold text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] sm:inline-flex">
+                  My Portal
+                </Link>
+                <div className="flex items-center gap-2">
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg,#2F5DAA,#4A7FD4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.75rem', fontWeight: 800 }}>
+                    {displayName.charAt(0).toUpperCase()}
+                  </div>
+                  <button onClick={() => signOut().then(() => window.location.href = '/')} className="hidden rounded-xl px-3 py-2 text-xs font-bold text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] sm:inline-flex">
+                    Sign out
+                  </button>
+                </div>
+              </>
+            ) : (
               <Link href="/login" className="hidden rounded-xl px-3 py-2 text-sm font-bold text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] sm:inline-flex">Patient login</Link>
-            </SignedOut>
-            <SignedIn>
-              <Link href="/portal/dashboard" className="hidden rounded-xl px-3 py-2 text-sm font-bold text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] sm:inline-flex">My Portal</Link>
-              <UserButton afterSignOutUrl="/">
-                <UserButton.MenuItems>
-                  <UserButton.Link label="My Portal" labelIcon={<svg style={{width:'14px',height:'14px'}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>} href="/portal/dashboard" />
-                  <UserButton.Link label="Book Appointment" labelIcon={<svg style={{width:'14px',height:'14px'}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>} href="/book" />
-                </UserButton.MenuItems>
-                <UserButton.UserProfilePage label="account" />
-                <UserButton.UserProfilePage label="security" />
-              </UserButton>
-            </SignedIn>
+            )}
             <Link href="/book" className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:-translate-y-0.5">Book a visit <ArrowRight size={15} /></Link>
             <button aria-label="Open menu" className="rounded-xl p-2 lg:hidden" onClick={() => setOpen(!open)}><Menu size={20} /></button>
           </div>
@@ -126,7 +132,7 @@ function PublicHeader() {
             <div className="flex flex-col gap-3 text-sm font-semibold">
               <a href="#care">Care at Ashoka</a>
               <a href="#specialists">Our specialists</a>
-              <Link href="/login">Patient login</Link>
+              {user ? <Link href="/portal/dashboard">My Portal</Link> : <Link href="/login">Patient login</Link>}
               <Link href="/dashboard/login">Staff portal</Link>
             </div>
           </div>
@@ -334,32 +340,31 @@ function BookPage() {
   const servicesQuery = useListPublicServices({ query: { queryKey: getListPublicServicesQueryKey() } });
   const doctorsQuery = useListPublicDoctors(undefined, { query: { queryKey: getListPublicDoctorsQueryKey() } });
   const create = useCreatePublicAppointment();
-  const { isSignedIn } = useAuth();
-  const { user: clerkUser } = useClerkUser();
-  const [, setLocation] = useLocation();
+  const { isSignedIn, user: supaUser } = useAuth();
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
+  const [, setLocation] = useLocation();
 
-  const clerkEmail = clerkUser?.primaryEmailAddress?.emailAddress ?? '';
-  const clerkName  = [clerkUser?.firstName, clerkUser?.lastName].filter(Boolean).join(' ');
-  const clerkPhone = clerkUser?.primaryPhoneNumber?.phoneNumber ?? '';
+  const supaEmail = supaUser?.email ?? '';
+  const supaName  = getUserDisplayName(supaUser);
+  const supaPhone = getUserPhone(supaUser);
 
   const [form, setForm] = useState({
-    patientName: clerkName,
-    phone: clerkPhone,
-    email: clerkEmail,
+    patientName: supaName,
+    phone: supaPhone,
+    email: supaEmail,
     serviceId: '',
     doctorId: '',
     visitType: 'new',
     notes: '',
   });
 
-  // Keep form in sync if Clerk user loads after initial render
+  // Keep form in sync if Supabase user loads after initial render
   const prevEmail = form.email;
-  if (clerkEmail && clerkEmail !== prevEmail) {
-    setForm(p => ({ ...p, email: clerkEmail, patientName: clerkName || p.patientName, phone: clerkPhone || p.phone }));
+  if (supaEmail && supaEmail !== prevEmail) {
+    setForm(p => ({ ...p, email: supaEmail, patientName: supaName || p.patientName, phone: supaPhone || p.phone }));
   }
 
   const services = Array.isArray(servicesQuery.data) ? servicesQuery.data : [];
@@ -673,14 +678,6 @@ export default function App() {
         <WouterRouter base={import.meta.env.BASE_URL?.replace(/\/$/, '') ?? ''}>
           <ErrorBoundary>
             <Switch>
-              {/* Clerk SSO callback — handles Google OAuth redirect */}
-              <Route path="/sso-callback">
-                <AuthenticateWithRedirectCallback
-                  signInForceRedirectUrl="/portal/dashboard"
-                  signUpForceRedirectUrl="/portal/dashboard"
-                />
-              </Route>
-
               {/* Public */}
               <Route path="/">
                 <PublicLayout><PublicHome /></PublicLayout>
