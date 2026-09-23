@@ -28,11 +28,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
-    // Listen for auth changes
+    // Listen for auth changes — also handles hash-based OAuth tokens on page load
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+
+      // If user just signed in via OAuth (hash token in URL), redirect to portal
+      if (session && window.location.hash.includes('access_token')) {
+        window.history.replaceState(null, '', '/portal/dashboard');
+        window.location.href = '/portal/dashboard';
+      }
     });
 
     return () => subscription.unsubscribe();
