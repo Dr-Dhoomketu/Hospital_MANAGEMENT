@@ -380,9 +380,13 @@ function BookPage() {
   const sendOtp = async () => {
     if (!form.email) return;
     setOtpStep('sending');
+    // Use Supabase OTP with email_otp type to get a 6-digit code
     const { error } = await supabase.auth.signInWithOtp({
       email: form.email,
-      options: { shouldCreateUser: true },
+      options: {
+        shouldCreateUser: true,
+        data: { full_name: form.patientName },
+      },
     });
     if (error) {
       setOtpError(error.message);
@@ -493,7 +497,9 @@ function BookPage() {
                       <button type="button" onClick={verifyOtp} style={{ padding: '9px 18px', borderRadius: '8px', border: 'none', background: '#0A1F44', color: '#fff', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}>Confirm</button>
                     </div>
                     {otpError && <p style={{ fontSize: '0.72rem', color: '#dc2626', marginTop: '6px' }}>{otpError}</p>}
-                    <p style={{ fontSize: '0.68rem', color: '#6B7FA3', marginTop: '6px' }}>A 6-digit code was sent to your email.</p>
+                    <p style={{ fontSize: '0.68rem', color: '#6B7FA3', marginTop: '6px' }}>
+                      A 6-digit code was sent to <strong>{form.email}</strong>. Check your inbox and spam folder.
+                    </p>
                   </div>
                 )}
                 {otpStep === 'sending' && <p style={{ fontSize: '0.72rem', color: '#6B7FA3', marginTop: '6px' }}>Sending code…</p>}
