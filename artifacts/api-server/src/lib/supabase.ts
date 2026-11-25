@@ -1,57 +1,42 @@
-import { ReplitConnectors } from "@replit/connectors-sdk";
+import { createClient } from "@supabase/supabase-js";
 
 type SupabaseRow = Record<string, unknown>;
 
-const connectors = new ReplitConnectors();
+function getClient() {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_ANON_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key);
+}
 
 export async function querySupabase(
   table: string,
   query = "",
 ): Promise<SupabaseRow[]> {
-  const response = await connectors.proxy(
-    "supabase",
-    `/rest/v1/${table}${query ? `?${query}` : ""}`,
-    { method: "GET" },
-  );
+  const client = getClient();
+  if (!client) throw new Error("Supabase not configured");
 
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(
-      `Supabase request failed (${response.status}) for ${table}: ${detail}`,
-    );
-  }
+  // Build a simple select query from the query string params
+  const params = new URLSearchParams(query);
+  const select = params.get("select") ?? "*";
+  const limit = params.get("limit");
 
-  const payload = (await response.json()) as unknown;
-  return Array.isArray(payload) ? (payload as SupabaseRow[]) : [];
+  let req = client.from(table).select(select);
+  if (limit) req = req.limit(Number(limit));
+
+  const { data, error } = await req;
+  if (error) throw new Error(`Supabase query failed for ${table}: ${error.message}`);
+  return (data ?? []) as unknown as SupabaseRow[];
 }
 
 export async function insertSupabaseRow(
   table: string,
   row: SupabaseRow,
 ): Promise<SupabaseRow> {
-  const response = await connectors.proxy(
-    "supabase",
-    `/rest/v1/${table}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Prefer: "return=representation",
-      },
-      body: JSON.stringify(row),
-    },
-  );
+  const client = getClient();
+  if (!client) throw new Error("Supabase not configured");
 
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(
-      `Supabase insert failed (${response.status}) for ${table}: ${detail}`,
-    );
-  }
-
-  const payload = (await response.json()) as unknown;
-  if (!Array.isArray(payload) || !payload[0]) {
-    throw new Error(`Supabase insert returned no row for ${table}`);
-  }
-  return payload[0] as SupabaseRow;
+  const { data, error } = await client.from(table).insert(row).select().single();
+  if (error) throw new Error(`Supabase insert failed for ${table}: ${error.message}`);
+  return data as SupabaseRow;
 }

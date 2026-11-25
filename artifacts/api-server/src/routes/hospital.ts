@@ -112,32 +112,44 @@ router.get("/dashboard/summary", (_req, res) => {
   res.json(GetDashboardSummaryResponse.parse(getDashboardSummary()));
 });
 
-router.get("/patients", (req, res) => {
-  const query = ListPatientsQueryParams.parse(req.query);
-  res.json(ListPatientsResponse.parse(listPatients(query.search, query.status)));
-});
-
-router.post("/patients", (req, res) => {
-  const input = CreatePatientBody.parse(req.body);
-  res.status(201).json(
-    CreatePatientResponse.parse({
-      ...createPatient({
-        ...input,
-        bloodGroup: input.bloodGroup ?? null,
-        dateOfBirth: input.dateOfBirth.toISOString().slice(0, 10),
-      }),
-    }),
-  );
-});
-
-router.get("/patients/:id", (req, res) => {
-  const params = GetPatientParams.parse(req.params);
-  const patient = getPatient(params.id);
-  if (!patient) {
-    res.status(404).json({ error: "Patient not found" });
-    return;
+router.get("/patients", async (req, res, next) => {
+  try {
+    const query = ListPatientsQueryParams.parse(req.query);
+    res.json(ListPatientsResponse.parse(await listPatients(query.search, query.status)));
+  } catch (error) {
+    next(error);
   }
-  res.json(GetPatientResponse.parse(patient));
+});
+
+router.post("/patients", async (req, res, next) => {
+  try {
+    const input = CreatePatientBody.parse(req.body);
+    res.status(201).json(
+      CreatePatientResponse.parse(
+        await createPatient({
+          ...input,
+          bloodGroup: input.bloodGroup ?? null,
+          dateOfBirth: input.dateOfBirth.toISOString().slice(0, 10),
+        }),
+      ),
+    );
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/patients/:id", async (req, res, next) => {
+  try {
+    const params = GetPatientParams.parse(req.params);
+    const patient = await getPatient(params.id);
+    if (!patient) {
+      res.status(404).json({ error: "Patient not found" });
+      return;
+    }
+    res.json(GetPatientResponse.parse(patient));
+  } catch (error) {
+    next(error);
+  }
 });
 
 router.get("/patients/:id/timeline", (req, res) => {

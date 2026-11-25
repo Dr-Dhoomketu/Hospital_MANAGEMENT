@@ -282,14 +282,14 @@ async function trySupabase<T>(
   table: string,
   map: (row: Record<string, unknown>) => T,
 ): Promise<T[] | null> {
-  if (process.env.NODE_ENV === "development") return null;
+  if (!process.env.SUPABASE_URL) return null;
   try {
-    const rows = await querySupabase(table, "select=*&limit=100");
+    const rows = await querySupabase(table, "select=*&limit=200");
     return rows.map(map);
   } catch (error) {
     if (!dataSourceWarningLogged) {
       console.warn(
-        "[hospital-data] Supabase schema is not available; returning demo fixtures in this environment.",
+        "[hospital-data] Supabase unavailable; returning demo fixtures.",
         error,
       );
       dataSourceWarningLogged = true;
@@ -332,7 +332,32 @@ export async function listDoctors(department?: string): Promise<Doctor[]> {
     : doctors;
 }
 
-export function listPatients(search?: string, status?: string): Patient[] {
+export async function listPatients(search?: string, status?: string): Promise<Patient[]> {
+  if (process.env.SUPABASE_URL) {
+    try {
+      const rows = await querySupabase("patients", "select=*&limit=200&order=created_at.desc");
+      const mapped: Patient[] = rows.map((row) => ({
+        id: String(row.id),
+        patientNumber: `ASH-${String(row.id).slice(0, 8).toUpperCase()}`,
+        name: `${row.first_name ?? ""} ${row.last_name ?? ""}`.trim(),
+        phone: String(row.phone ?? ""),
+        email: String(row.email ?? ""),
+        dateOfBirth: String(row.date_of_birth ?? ""),
+        gender: String(row.gender ?? ""),
+        bloodGroup: row.blood_group ? String(row.blood_group) : null,
+        status: String(row.status ?? "Active").toLowerCase() === "active" ? "active" : "inactive",
+        createdAt: String(row.created_at ?? new Date().toISOString()),
+      }));
+      return mapped.filter((p) => {
+        const matchesSearch =
+          !search ||
+          `${p.name} ${p.patientNumber} ${p.phone}`.toLowerCase().includes(search.toLowerCase());
+        return matchesSearch && (!status || p.status === status);
+      });
+    } catch (err) {
+      console.warn("[hospital-data] listPatients Supabase error, using demo.", err);
+    }
+  }
   return demoPatients.filter((patient) => {
     const matchesSearch =
       !search ||
@@ -343,7 +368,38 @@ export function listPatients(search?: string, status?: string): Patient[] {
   });
 }
 
-export function createPatient(input: Omit<Patient, "id" | "patientNumber" | "createdAt" | "status">): Patient {
+export async function createPatient(input: Omit<Patient, "id" | "patientNumber" | "createdAt" | "status">): Promise<Patient> {
+  if (process.env.SUPABASE_URL) {
+    try {
+      const nameParts = input.name.trim().split(/\s+/);
+      const firstName = nameParts[0] ?? input.name;
+      const lastName = nameParts.slice(1).join(" ") || "";
+      const row = await insertSupabaseRow("patients", {
+        first_name: firstName,
+        last_name: lastName,
+        phone: input.phone,
+        email: input.email,
+        date_of_birth: input.dateOfBirth,
+        gender: input.gender,
+        blood_group: input.bloodGroup ?? null,
+        status: "Active",
+      });
+      return {
+        id: String(row.id),
+        patientNumber: `ASH-${String(row.id).slice(0, 8).toUpperCase()}`,
+        name: `${row.first_name ?? ""} ${row.last_name ?? ""}`.trim(),
+        phone: String(row.phone ?? ""),
+        email: String(row.email ?? ""),
+        dateOfBirth: String(row.date_of_birth ?? ""),
+        gender: String(row.gender ?? ""),
+        bloodGroup: row.blood_group ? String(row.blood_group) : null,
+        status: "active",
+        createdAt: String(row.created_at ?? new Date().toISOString()),
+      };
+    } catch (err) {
+      console.warn("[hospital-data] createPatient Supabase error, using in-memory.", err);
+    }
+  }
   const patient: Patient = {
     ...input,
     id: `pat-${randomUUID().slice(0, 8)}`,
@@ -355,7 +411,29 @@ export function createPatient(input: Omit<Patient, "id" | "patientNumber" | "cre
   return patient;
 }
 
-export function getPatient(id: string): Patient | undefined {
+export async function getPatient(id: string): Promise<Patient | undefined> {
+  if (process.env.SUPABASE_URL) {
+    try {
+      const rows = await querySupabase("patients", `select=*&id=eq.${id}&limit=1`);
+      if (rows.length > 0) {
+        const row = rows[0];
+        return {
+          id: String(row.id),
+          patientNumber: `ASH-${String(row.id).slice(0, 8).toUpperCase()}`,
+          name: `${row.first_name ?? ""} ${row.last_name ?? ""}`.trim(),
+          phone: String(row.phone ?? ""),
+          email: String(row.email ?? ""),
+          dateOfBirth: String(row.date_of_birth ?? ""),
+          gender: String(row.gender ?? ""),
+          bloodGroup: row.blood_group ? String(row.blood_group) : null,
+          status: String(row.status ?? "Active").toLowerCase() === "active" ? "active" : "inactive",
+          createdAt: String(row.created_at ?? new Date().toISOString()),
+        };
+      }
+    } catch (err) {
+      console.warn("[hospital-data] getPatient Supabase error, using demo.", err);
+    }
+  }
   return demoPatients.find((patient) => patient.id === id);
 }
 
@@ -445,19 +523,18 @@ export function getDashboardSummary() {
 export async function persistAppointmentIfConfigured(
   appointment: Appointment,
 ): Promise<void> {
-  if (process.env.NODE_ENV !== "production") return;
-  await insertSupabaseRow("hospital_appointments", {
-    id: appointment.id,
-    appointment_number: appointment.appointmentNumber,
-    patient_name: appointment.patientName,
-    doctor_name: appointment.doctorName,
-    service_name: appointment.serviceName,
-    department: appointment.department,
-    scheduled_at: appointment.scheduledAt,
-    status: appointment.status,
-    visit_type: appointment.visitType,
-    check_in_code: appointment.checkInCode,
-    qr_payload: appointment.qrPayload,
-    notes: appointment.notes,
-  });
+  if (!process.env.SUPABASE_URL) return;
+  try {
+    await insertSupabaseRow("appointments", {
+      appointment_date: appointment.scheduledAt,
+      status: "Pending",
+      type: appointment.visitType,
+      notes: appointment.notes,
+      doctor_id: null,
+      patient_id: null,
+    });
+  } catch (err) {
+    // Non-fatal — appointment still returned to client
+    console.warn("[hospital-data] persistAppointmentIfConfigured failed:", err);
+  }
 }

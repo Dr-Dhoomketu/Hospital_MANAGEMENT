@@ -416,7 +416,7 @@ function BookPage() {
     e.preventDefault();
     if (!canBook) { sendOtp(); return; }
     if (!form.patientName || !form.phone || !form.email || !form.serviceId || !selectedDate || !selectedTime) return;
-    const scheduledAt = `${selectedDate}T${selectedTime}:00`;
+    const scheduledAt = `${selectedDate}T${selectedTime}:00Z`;
     create.mutate({
       data: {
         ...form,

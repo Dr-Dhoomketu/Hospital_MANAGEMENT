@@ -193,6 +193,11 @@ export default function PatientsPage() {
             <button className="mt-2 w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground" disabled={createMut.isPending}>
               {createMut.isPending ? 'Saving…' : 'Save patient record'}
             </button>
+            {createMut.isError && (
+              <p className="mt-2 text-sm font-semibold text-red-600">
+                Could not save patient — please check all fields and try again.
+              </p>
+            )}
           </form>
         </Modal>
       )}
