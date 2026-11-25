@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'wouter';
+import { Link, useParams, useLocation } from 'wouter';
 import { Users, Search, ListFilter, ArrowLeft, CalendarDays, Plus, Printer, MoreHorizontal } from 'lucide-react';
 import { useListPatients, useCreatePatient, useGetPatient, useGetPatientTimeline, getListPatientsQueryKey, getGetPatientQueryKey, getGetPatientTimelineQueryKey } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -14,6 +14,7 @@ function PatientRecord() {
   const timelineQ = useGetPatientTimeline(params.id ?? '', { query: { queryKey: getGetPatientTimelineQueryKey(params.id ?? ''), enabled: !!params.id } });
   const patient = patientQ.data;
   const timeline = Array.isArray(timelineQ.data) ? timelineQ.data : [];
+  const [, navigate] = useLocation();
 
   if (patientQ.isLoading) return <div className="p-8 text-center text-muted-foreground text-sm">Loading…</div>;
   if (!patient) return <EmptyState icon={Users} title="Patient not found" detail="This record may have been removed." />;
@@ -34,7 +35,7 @@ function PatientRecord() {
         </div>
         <div className="flex flex-wrap gap-2">
           <StatusPill status={patient.status === 'active' ? 'Active' : 'Inactive'} />
-          <button className="rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">
+          <button onClick={() => navigate('/book')} className="rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">
             <CalendarDays size={14} className="mr-1.5 inline" />Book appointment
           </button>
           <button className="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-muted">

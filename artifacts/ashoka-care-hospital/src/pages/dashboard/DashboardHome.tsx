@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { Users, CalendarDays, ClipboardList, BedDouble, RefreshCw, ArrowRight, DoorOpen, FlaskConical, UserPlus } from 'lucide-react';
 import { useGetDashboardSummary, useListAppointments } from '@workspace/api-client-react';
 import { getGetDashboardSummaryQueryKey, getListAppointmentsQueryKey } from '@workspace/api-client-react';
@@ -10,6 +9,7 @@ export default function DashboardHome() {
   const appointmentsQ = useListAppointments({}, { query: { queryKey: getListAppointmentsQueryKey({}) } });
   const s = summaryQ.data;
   const appointments = Array.isArray(appointmentsQ.data) ? appointmentsQ.data.slice(0, 4) : [];
+  const [, navigate] = useLocation();
 
   const today = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -20,7 +20,7 @@ export default function DashboardHome() {
         title="Hospital pulse"
         description="A clear view of today's care flow, bottlenecks, and patient-facing work."
         action="Book appointment"
-        onAction={() => {}}
+        onAction={() => navigate('/book')}
       />
 
       {/* Stats */}

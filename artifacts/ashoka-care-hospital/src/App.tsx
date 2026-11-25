@@ -490,15 +490,15 @@ function BookPage() {
                 {/* OTP input */}
                 {otpStep === 'verify' && (
                   <div style={{ marginTop: '10px', padding: '14px', borderRadius: '12px', background: 'rgba(47,93,170,0.06)', border: '1px solid rgba(47,93,170,0.15)' }}>
-                    <p style={{ fontSize: '0.75rem', color: '#2F5DAA', fontWeight: 600, marginBottom: '8px' }}>Enter the 6-digit code sent to {form.email}</p>
+                    <p style={{ fontSize: '0.75rem', color: '#2F5DAA', fontWeight: 600, marginBottom: '8px' }}>Enter the verification code sent to {form.email}</p>
                     <div style={{ display: 'flex', gap: '8px' }}>
-                      <input value={otp} onChange={e => setOtp(e.target.value)} placeholder="123456" maxLength={6}
+                      <input value={otp} onChange={e => setOtp(e.target.value)} placeholder="12345678" maxLength={8}
                         style={{ flex: 1, padding: '9px 12px', borderRadius: '8px', border: '1.5px solid rgba(47,93,170,0.2)', outline: 'none', fontSize: '1.1rem', letterSpacing: '0.3em', fontWeight: 700, textAlign: 'center' }}/>
                       <button type="button" onClick={verifyOtp} style={{ padding: '9px 18px', borderRadius: '8px', border: 'none', background: '#0A1F44', color: '#fff', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}>Confirm</button>
                     </div>
                     {otpError && <p style={{ fontSize: '0.72rem', color: '#dc2626', marginTop: '6px' }}>{otpError}</p>}
                     <p style={{ fontSize: '0.68rem', color: '#6B7FA3', marginTop: '6px' }}>
-                      A 6-digit code was sent to <strong>{form.email}</strong>. Check your inbox and spam folder.
+                      A verification code was sent to <strong>{form.email}</strong>. Check your inbox and spam folder.
                     </p>
                   </div>
                 )}
